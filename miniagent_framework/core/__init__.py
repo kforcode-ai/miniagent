@@ -3,10 +3,11 @@ MiniAgent - A simple, powerful agent framework
 Inspired by HICA and BAML, focusing on simplicity and readability
 """
 
-from .core import Agent, Thread, AgentConfig
+from .core import Agent, Thread, AgentConfig, Message
 from .tools import Tool, ToolRegistry, ToolResult
-from .llm import LLMClient, RetryPolicy, RetryStrategy
+from .llm import LLMClient, LLMProvider, RetryPolicy, RetryStrategy
 from .events import Event, EventType, StreamCallback
+from .providers import BaseLLMProvider, OpenAIProvider, GeminiProvider, AnthropicProvider
 
 __version__ = "0.1.0"
 

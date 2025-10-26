@@ -2,10 +2,17 @@
 Interactive demo of MiniAgent framework
 """
 import asyncio
+import sys
+import os
 from dotenv import load_dotenv
-from miniagent import Agent, AgentConfig, ToolRegistry, StreamCallback, EventType, Thread
-from miniagent.tools import KnowledgeBaseTool, WebSearchTool
-from miniagent.llm import constant_retry
+
+# Add parent directory to path to import framework
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from miniagent_framework.core import Agent, AgentConfig, Thread
+from miniagent_framework.core.tools import ToolRegistry, KnowledgeBaseTool, WebSearchTool
+from miniagent_framework.core.events import StreamCallback, EventType
+from miniagent_framework.core.llm import constant_retry
 
 # Load environment variables
 load_dotenv()

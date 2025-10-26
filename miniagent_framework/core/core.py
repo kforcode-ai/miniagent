@@ -8,7 +8,7 @@ import asyncio
 from datetime import datetime
 
 from .events import Event, EventType, StreamCallback
-from .llm import LLMClient, RetryPolicy
+from .llm import LLMClient, RetryPolicy, LLMProvider
 from .tools import ToolRegistry, ToolResult
 
 
@@ -37,7 +37,6 @@ class Message:
 class Thread:
     """
     Conversation thread with event history
-    Inspired by HICA's event-sourced architecture
     """
     
     def __init__(self, thread_id: Optional[str] = None):
@@ -67,7 +66,7 @@ class Thread:
         formatted_messages = []
         for msg in self.messages:
             msg_dict = msg.to_dict()
-            # Skip internal tool execution markers for real APIs
+            # Skip internal tool execution markers for APIs
             if msg.role == "assistant" and msg.content.startswith("[Tool:"):
                 continue
             else:
@@ -87,7 +86,9 @@ class AgentConfig:
     """Agent configuration"""
     name: str = "Assistant"
     system_prompt: str = "You are a helpful AI assistant."
-    model: str = "gpt-4o-mini"
+    provider: str = "openai"  # "openai", "gemini", "anthropic"
+    model: Optional[str] = None  # Auto-selects default for provider if None
+    api_key: Optional[str] = None  # Provider API key (uses env vars if None)
     temperature: float = 0.1
     max_tokens: int = 2000
     retry_policy: Optional[RetryPolicy] = None
@@ -110,6 +111,8 @@ class Agent:
         self.tools = tools or ToolRegistry()
         self.callbacks = callbacks or StreamCallback()
         self.llm = LLMClient(
+            provider=self.config.provider,
+            api_key=self.config.api_key,
             model=self.config.model,
             retry_policy=self.config.retry_policy
         )
@@ -137,62 +140,19 @@ class Agent:
         # Emit user input event
         await self.callbacks.emit(Event(EventType.USER_INPUT, user_input))
 
-        # Check if we're using real APIs or mocks
+        # Check if llm client available
         if self.llm.client is None:
-            # Use mock-based iterative approach
-            return await self._run_with_mocks(thread, context, stream, max_iterations)
-        else:
-            # Use real LLM with native tool calling
-            return await self._run_with_real_api(thread, context, stream)
+            raise RuntimeError("No LLM client is configured. Please provide a valid LLM client.")
+        return await self._run(thread, context, stream)
 
-    async def _run_with_mocks(
+    async def _run(
         self,
         thread: Thread,
         context: Optional[str],
         stream: Optional[bool],
-        max_iterations: int
+        max_agent_iterations: int = 5
     ) -> str:
-        """Run agent loop with mock responses"""
-        # Agent loop - iterate until we have a response or hit max iterations
-        for iteration in range(max_iterations):
-            # Decide on action (think, use tools, or respond)
-            decision = await self._decide_action(thread, context)
-
-            # Debug: ensure decision is a dict
-            if not isinstance(decision, dict):
-                print(f"DEBUG: Decision is not dict: {type(decision)} = {decision}")
-                decision = {"action": "respond"}
-
-            # Execute based on decision
-            if decision["action"] == "think":
-                # Add thinking to thread and continue loop
-                thought = decision.get("content", "Processing...")
-                await self.callbacks.emit(Event(EventType.AGENT_THINKING, thought))
-                thread.add_message(Message("assistant", f"[Thinking: {thought}]"))
-                thread.add_event(Event(EventType.AGENT_THINKING, thought))
-                continue  # Continue to next iteration
-
-            elif decision["action"] == "use_tools":
-                # Execute tools and add results to thread
-                tool_calls = decision.get("tools", [])
-                await self._execute_tools(tool_calls, thread)
-                continue  # Continue to next iteration with tool results
-
-            else:  # respond
-                # Generate and return final response
-                return await self._generate_response(thread, context, stream)
-
-        # Fallback if max iterations reached
-        return "I apologize, but I couldn't complete the task within the allowed iterations. Please try rephrasing your request."
-
-    async def _run_with_real_api(
-        self,
-        thread: Thread,
-        context: Optional[str],
-        stream: Optional[bool]
-    ) -> str:
-        """Run with real LLM API using proper agent loop (inspired by ai-that-works agent runtime)"""
-        max_agent_iterations = 5  # Prevent infinite loops
+        """Run with LLM API using proper agent loop"""
 
         for iteration in range(max_agent_iterations):
             try:
@@ -333,7 +293,6 @@ class Agent:
     async def _decide_action(self, thread: Thread, context: Optional[str]) -> Dict:
         """
         Decide what action to take
-        Inspired by HICA's tool routing
         """
         # Build prompt for decision
         messages = thread.get_messages_for_llm()

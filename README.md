@@ -1,197 +1,203 @@
-# MiniAgent Framework 🤖
+# 🤖 MiniAgent Framework
 
-A **simple, powerful agent framework** for building conversational AI agents with tool use, streaming, and robust retry logic.
-
-## 🎯 Philosophy
-
-**Simplicity over SOLID** - We prioritize clean, readable code that's easy to understand and modify over complex design patterns.
-
-## ✨ Key Features
-
-### 1. **LLM Clients with Retry Policies**
-- Support for OpenAI (Gemini, Anthropic coming soon)
-- Configurable retry strategies:
-  - Constant delay
-  - Exponential backoff with customizable parameters
-- Automatic error handling and recovery
-
-### 2. **Real-time Streaming**
-- Stream LLM responses word-by-word
-- Show users what's happening behind the scenes:
-  - Agent thinking process
-  - Tool selection and execution
-  - Tool outputs
-  - Final responses
-- Everything is streamed, even structured responses
-
-### 3. **Tool System**
-- Simple decorator-based tool registration
-- Automatic parameter inference
-- Built-in error handling and retry logic
-- Structured tool results with human and LLM-friendly outputs
-- Built-in tools:
-  - Web search (Tavily)
-  - Knowledge base (mockable)
-
-### 4. **Conversation Management**
-- Event-sourced conversation threads
-- Full conversation history and context
-- Stateful and stateless operation modes
-- External context injection
-
-### 5. **Event-Driven Architecture**
-- Inspired by HICA's event sourcing
-- Complete audit trail of all actions
-- Flexible callback system for monitoring
+A **simple, powerful agent framework** for building conversational AI agents with tool use, streaming, Redis-backed sessions, and robust retry logic.
 
 ## 📁 Project Structure
 
 ```
-miniagent/              # The framework
-├── __init__.py        # Package exports
-├── core.py            # Agent, Thread, AgentConfig
-├── llm.py             # LLM client with retry logic
-├── tools.py           # Tool system and registry
-├── events.py          # Event system and callbacks
-└── README.md          # Framework documentation
+miniagent_framework/
+├── core/                    # Core agent framework
+│   ├── __init__.py         # Package exports
+│   ├── core.py             # Agent, Thread, AgentConfig
+│   ├── llm.py              # LLM client with retry logic
+│   ├── tools.py            # Tool system and registry
+│   └── events.py           # Event system and callbacks
+│
+├── extensions/             # Extended functionality
+│   ├── redis_client.py     # Redis session manager
+│   ├── session.py          # Session-aware agent
+│   └── events_enhanced.py  # Enhanced events for sessions
+│
+└── tools/                  # Enhanced tool implementations
+    └── tools_enhanced.py   # Token-optimized tools
 
-example_miniagent.py   # Complete usage examples
-test_miniagent.py      # Basic tests
+demos/                      # Example usage and demos
+├── demo_miniagent.py       # Basic framework demo
+├── demo_redis_session.py   # Redis sessions demo
+└── demo_enhanced_tools.py  # Token optimization demo
+
+tests/                      # Test suites
+└── test_comprehensive.py   # Comprehensive framework tests
+
+docs/                       # Documentation
+├── README_FRAMEWORK.md     # Core framework docs
+├── README_REDIS.md         # Redis session docs
+└── improvements.md         # Future improvements
+
+config/                     # Configuration files
+└── docker-compose.yml      # Redis setup
 ```
 
 ## 🚀 Quick Start
 
+### 1. Install Dependencies
+
+```bash
+# Core framework only (choose your LLM provider)
+pip install python-dotenv
+
+# For OpenAI/GPT:
+pip install openai
+
+# For Google Gemini:
+pip install google-generativeai
+
+# For Anthropic Claude:
+pip install anthropic
+
+# Full installation with all providers:
+pip install -r requirements.txt
+```
+
+### 2. Set Up Environment
+
+```bash
+# Create .env file with your provider's API key
+echo "OPENAI_API_KEY=your-key-here" >> .env      # For OpenAI
+echo "GOOGLE_API_KEY=your-key-here" >> .env       # For Gemini
+echo "ANTHROPIC_API_KEY=your-key-here" >> .env    # For Claude
+echo "TAVILY_API_KEY=your-key-here" >> .env       # Optional for web search
+```
+
+### 3. Run Demos
+
+#### Basic Agent Demo
+```bash
+python demos/demo_miniagent.py
+```
+
+#### Redis Session Management
+```bash
+# Start Redis first
+docker-compose -f config/docker-compose.yml up -d
+
+# Run session demo
+python demos/demo_redis_session.py
+```
+
+#### Token-Optimized Tools
+```bash
+python demos/demo_enhanced_tools.py
+```
+
+#### Multi-LLM Provider Demo
+```bash
+python demos/demo_multi_llm_providers.py
+```
+
+## ✨ Key Features
+
+### Core Framework
+- 🤖 **Multi-LLM Support** - OpenAI, Google Gemini, Anthropic Claude
+- 🔧 **Tool System** - Easy tool creation with decorators
+- 📡 **Real-time Streaming** - Stream responses word-by-word
+- 🔄 **Retry Logic** - Configurable retry strategies
+- 📝 **Event System** - Complete audit trail of all actions
+
+### Extensions
+- 💾 **Redis Sessions** - Persistent conversations across restarts
+- 🚀 **Token Optimization** - Send only required params to LLM
+- 🔐 **Session Management** - User-based session isolation
+- ⚡ **Caching** - Cache tool results and LLM responses
+- 🔄 **Distributed** - Multiple agent instances can share sessions
+
+## 🤖 Multi-LLM Provider Support
+
+The framework supports multiple LLM providers out of the box:
+
+### Supported Providers
+
+| Provider | Models | Environment Variable |
+|----------|--------|---------------------|
+| OpenAI | GPT-4, GPT-3.5 | `OPENAI_API_KEY` |
+| Google Gemini | Gemini Pro, Gemini Flash | `GOOGLE_API_KEY` or `GEMINI_API_KEY` |
+| Anthropic | Claude 3 (Opus, Sonnet, Haiku) | `ANTHROPIC_API_KEY` |
+
+### Usage Example
+
 ```python
-from miniagent import Agent, AgentConfig, ToolRegistry
+from miniagent_framework.core import Agent, AgentConfig
 
-# Create tools
-registry = ToolRegistry()
+# Using OpenAI (default)
+agent = Agent(AgentConfig(
+    provider="openai",
+    model="gpt-4o-mini"  # Optional, uses default if not specified
+))
 
-@registry.tool()
-async def calculate(expression: str):
-    return eval(expression)
+# Using Google Gemini
+agent = Agent(AgentConfig(
+    provider="gemini",
+    model="gemini-1.5-flash"
+))
 
-# Configure agent
+# Using Anthropic Claude
+agent = Agent(AgentConfig(
+    provider="anthropic",
+    model="claude-3-haiku-20240307"
+))
+
+# The API is the same regardless of provider
+response = await agent.run("Hello, how are you?")
+```
+
+### Provider-Specific Features
+
+All providers support:
+- ✅ Streaming responses
+- ✅ Tool/function calling
+- ✅ Retry policies
+- ✅ Temperature and max_tokens control
+
+### Switching Providers
+
+You can easily switch providers without changing your code:
+
+```python
+# Configure via environment variable
 config = AgentConfig(
-    system_prompt="You are a helpful assistant.",
-    stream_by_default=True
-)
-
-# Create and run
-agent = Agent(config=config, tools=registry)
-response = await agent.run("What's 2 + 2?")
-```
-
-## 🔄 Retry Policies
-
-```python
-# Exponential backoff
-from miniagent.llm import exponential_retry
-
-config.retry_policy = exponential_retry(
-    max_retries=3,
-    initial_delay=0.3,
-    multiplier=1.5,
-    max_delay=10.0
-)
-
-# Constant delay
-from miniagent.llm import constant_retry
-
-config.retry_policy = constant_retry(
-    max_retries=3,
-    delay=0.2
+    provider=os.getenv("LLM_PROVIDER", "openai")  # Flexible provider selection
 )
 ```
 
-## 🛠️ Creating Custom Tools
+## 📚 Documentation
 
-```python
-from miniagent.tools import ToolResult
+- [Core Framework Documentation](docs/README_FRAMEWORK.md)
+- [Redis Session Management](docs/README_REDIS.md)
+- [Future Improvements](docs/improvements.md)
 
-@registry.tool(description="Search database")
-async def search(query: str) -> ToolResult:
-    # Your implementation
-    results = await database.search(query)
-    
-    return ToolResult(
-        success=True,
-        data=results,
-        display_content=f"Found {len(results)} results",  # For humans
-        llm_content=str(results)  # For LLM
-    )
-```
+## 🧪 Testing
 
-## 📡 Event Callbacks
+Run the comprehensive test suite:
 
-```python
-from miniagent import StreamCallback, EventType
-
-callbacks = StreamCallback()
-
-# Monitor what's happening
-callbacks.on(EventType.AGENT_THINKING, lambda e: print(f"🤔 {e.content}"))
-callbacks.on(EventType.TOOL_EXECUTION, lambda e: print(f"🔧 {e.content}"))
-callbacks.on(EventType.STREAM_CHUNK, lambda e: print(e.content, end=""))
-```
-
-## 💬 Conversation Threads
-
-```python
-from miniagent import Thread
-
-# Stateful conversations
-thread = Thread()
-await agent.run("Hello!", thread=thread)
-await agent.run("What did I say?", thread=thread)  # Remembers context
-
-# Stateless queries
-await agent.run("What's the weather?")  # No thread, no memory
-```
-
-## 🎨 Customization
-
-Everything is customizable:
-- System prompts
-- Temperature and model settings
-- Retry strategies
-- Tool selection logic
-- Event handlers
-- Streaming behavior
-
-## 📚 Inspiration
-
-This framework is inspired by:
-- [HICA](https://github.com/sandipan1/hica) - Event-sourced architecture and human-in-the-loop design
-- [BAML](https://github.com/BoundaryML/baml) - Type-safe LLM interactions
-- Focus on **simplicity and readability** over complex abstractions
-
-## 🚦 Getting Started
-
-1. Install dependencies:
 ```bash
-pip install openai python-dotenv
-pip install tavily-python  # Optional, for web search
+python tests/test_comprehensive.py
 ```
 
-2. Set up environment variables:
-```bash
-OPENAI_API_KEY=your-key-here
-TAVILY_API_KEY=your-key-here  # Optional
-```
+## 🏗️ Architecture
 
-3. Run the example:
-```bash
-python example_miniagent.py
-```
+The framework follows a modular architecture:
 
-## 🎯 Design Principles
+1. **Core Layer** - Basic agent functionality
+2. **Extensions Layer** - Optional enhancements (Redis, caching)
+3. **Tools Layer** - Reusable tool implementations
+4. **Application Layer** - Your custom implementation
 
-1. **Simplicity First** - Code should be easy to read and understand
-2. **Explicit over Implicit** - Clear, obvious behavior
-3. **Modular** - Each component does one thing well
-4. **Extensible** - Easy to add new tools and capabilities
-5. **Production-Ready** - Built-in retry, error handling, and monitoring
+## 🤝 Contributing
+
+1. Keep code simple and readable
+2. Add tests for new features
+3. Update documentation
+4. Follow existing patterns
 
 ## 📄 License
 
@@ -199,4 +205,4 @@ MIT
 
 ---
 
-Built with ❤️ for creators who want to build AI agents without complexity.
+Built with ❤️ for creators who want powerful AI agents without complexity.
